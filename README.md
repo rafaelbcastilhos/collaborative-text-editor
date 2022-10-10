@@ -1,2 +1,9 @@
 # collaborative-text-editor
-Editor de texto colaborativo no modelo cliente servidor utilizando sockets. 
+
+### Construção:
+Executar: ```make all```
+
+### Execução:
+Em um terminal executar: ```./server```
+
+Em até outros dez terminais executar: ```./client```
