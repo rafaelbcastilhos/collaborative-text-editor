@@ -11,11 +11,10 @@
 
 char text[num_lines][line_size];
 int counter;
-pthread_mutex_t write_lock, count_lock;
+pthread_mutex_t write_lock, counter_lock;
 
-void* keep_connection(void* p_client_sockfd){
-  int client_sockfd = *((int*) p_client_sockfd);
-  free(p_client_sockfd);
+void* connection(void* pointer_client_sockfd){
+  int client_sockfd = *((int*) pointer_client_sockfd);
   struct message msg;
   
   while(1){
@@ -26,7 +25,7 @@ void* keep_connection(void* p_client_sockfd){
       pthread_mutex_lock(&write_lock);
       write(client_sockfd, text[msg.idx], line_size);
       pthread_mutex_unlock(&write_lock);
-      printf("Texto lido: \"%s\" na linha: %d\n", text[msg.idx], msg.idx);
+      printf("Texto lido: %s na linha: %d\n", text[msg.idx], msg.idx);
     }
     else if(msg.type == ADD){
       int result = 0;
@@ -35,23 +34,24 @@ void* keep_connection(void* p_client_sockfd){
       write(client_sockfd, &result, sizeof(int));
       pthread_mutex_unlock(&write_lock);
 
-      printf("Texto escrito: \"%s\" na linha: %d\n", text[msg.idx], msg.idx);
+      printf("Texto escrito: %s na linha: %d\n", text[msg.idx], msg.idx);
     }
-    else
+    else if(msg.type == EXIT)
       break;
   }
 
   close(client_sockfd);
 
-  pthread_mutex_lock(&count_lock);
+  pthread_mutex_lock(&counter_lock);
   counter--;
   printf("Clientes conectados: %d\n", counter);
-  pthread_mutex_unlock(&count_lock);
+  pthread_mutex_unlock(&counter_lock);
 
   return NULL;
 }
 
 int main(){
+  pthread_t threads[max_clients];
   counter = 0;
   
   int server_sockfd, client_sockfd, server_len, client_len;
@@ -63,18 +63,18 @@ int main(){
   server_address.sin_port = htons(9734);
   server_len = sizeof(server_address);
 
-  if (pthread_mutex_init(&write_lock, NULL) || pthread_mutex_init(&count_lock, NULL)){
+  if (pthread_mutex_init(&write_lock, NULL) || pthread_mutex_init(&counter_lock, NULL)){
     printf("Não foi possível inicializar o mutex\n");
     exit(1);
   } 
 
-  bind(server_sockfd, (struct sockaddr *) &server_address, server_len);
+	bind(server_sockfd, (struct sockaddr *) &server_address, server_len);
 	listen(server_sockfd, 5);
 	
   while(1) {
     printf("Servidor esperando\n");
     client_len = sizeof(client_address);
-		client_sockfd = accept(server_sockfd, (struct sockaddr *) &client_address, &client_len);
+	client_sockfd = accept(server_sockfd, (struct sockaddr *) &client_address, &client_len);
 
     if(counter >= max_clients) {
       printf("Número de clientes superior ao limite\n");
@@ -88,16 +88,18 @@ int main(){
       write(client_sockfd, &result, sizeof(int));
     }
 
-    pthread_t thread;
-    int *p_client_sockfd = malloc(sizeof(int));
-    *p_client_sockfd = client_sockfd;
-    pthread_create(&thread, NULL, keep_connection, p_client_sockfd);
+    int *pointer_client_sockfd = malloc(sizeof(int));
+    *pointer_client_sockfd = client_sockfd;
+    pthread_mutex_lock(&counter_lock);
+    pthread_create(&threads[counter], NULL, connection, pointer_client_sockfd);
 
-    pthread_mutex_lock(&count_lock);
     counter++;
     printf("Clientes conectados: %d\n", counter);
-    pthread_mutex_unlock(&count_lock);
+    pthread_mutex_unlock(&counter_lock);
   }
-  
+
+  for(int i = 0; i < counter; i++)
+    pthread_join(threads[i], NULL);
+
   exit(0);
 }

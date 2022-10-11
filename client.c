@@ -8,34 +8,34 @@
 #include <string.h>
 #include "traits.h"
 
-#define STR2(x) #x
-#define STR(X) STR2(X)
+#define STRC(x) #x
+#define STR(X) STRC(X)
 
 void get_line(int sockfd, int idx, char* text){
   struct message msg;
-  msg.type = GET;
   msg.idx = idx;
+  msg.type = GET;
 	
   write(sockfd, &msg, sizeof(msg));
-	read(sockfd, text, num_lines);
+  read(sockfd, text, num_lines);
 }
 
 int add_line(int sockfd, int idx, char* text){
   struct message msg;
-  msg.type  = ADD;
-  msg.idx = idx;
   strcpy(msg.text, text);
+  msg.idx = idx;
+  msg.type  = ADD;
 
   int result;
-
   write(sockfd, &msg, sizeof(msg));
-	read(sockfd, &result, sizeof(int));
+  read(sockfd, &result, sizeof(int));
 
   return result;
 }
 
 void close_connection(int sockfd){
   struct message msg;
+  msg.type = EXIT;
   write(sockfd, &msg, sizeof(msg));
 }
 
@@ -58,13 +58,13 @@ int main(){
   read(sockfd, &result, sizeof(int));
   if(result == -1){
 		printf("Não há espaço para mais clientes\n");
-    exit(1);
+    	exit(1);
   }
 
   while(option){
+    printf("\n0 - Encerrar conexão");
     printf("\n1 - Ler linha");
     printf("\n2 - Escrever linha");
-    printf("\n0 - Encerrar conexão");
     printf("\nOpção: ");
     scanf("%d", &option);
 
